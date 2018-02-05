@@ -1,0 +1,37 @@
+name:                gaugereader
+version:             0.1.0.0
+synopsis:            Masked Occupancy Hough Transform for Gague Image Data Collection
+description:         Masked Occupancy Hough Transform for Gague Image Data Collection
+homepage:            https://github.com/TravisWhitaker/gaugereader
+license:             MIT
+license-file:        LICENSE
+author:              Travis Whitaker
+maintainer:          pi.boy.travis@gmail.com
+copyright:           Travis Whitaker 2017
+-- category:            
+build-type:          Simple
+-- extra-source-files:  ChangeLog.md
+cabal-version:       >=1.10
+
+executable gaugereader
+  main-is:             Main.hs
+  other-modules:       GaugeReader.Color
+                       GaugeReader.FrameIO
+                       GaugeReader.Hough
+  -- other-extensions:    
+  build-depends:       base >=4.10 && <4.11
+                     , accelerate
+                     , accelerate-llvm-ptx
+                     , accelerate-io
+                     , bytestring
+                     , cassava
+                     , ffmpeg-light
+                     , JuicyPixels
+                     , optparse-generic
+                     , vector
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -O2 -threaded -rtsopts
+  if(!os(darwin))
+    build-depends: accelerate-llvm-ptx
+    cpp-options: -DCUDA
