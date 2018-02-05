@@ -21,7 +21,7 @@ executable gaugereader
   -- other-extensions:    
   build-depends:       base >=4.10 && <4.11
                      , accelerate
-                     , accelerate-llvm-ptx
+                     , accelerate-llvm-native
                      , accelerate-io
                      , bytestring
                      , cassava
