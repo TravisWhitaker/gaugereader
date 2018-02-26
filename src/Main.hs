@@ -2,6 +2,7 @@
            , CPP
            , DeriveGeneric
            , DeriveAnyClass
+           , FlexibleContexts
            , OverloadedStrings
            #-}
 
@@ -20,6 +21,8 @@ import Data.Array.Accelerate.LLVM.Native
 import qualified Data.ByteString.Lazy as BL
 
 import Data.Csv
+
+import Data.Fixed
 
 import Data.Monoid
 
@@ -92,18 +95,23 @@ makeRec :: Double -- ^ Top crop frac
         -> Int    -- ^ Theta columns
         -> Int    -- ^ Radius rows
         -> A.Array A.DIM2 A.Word8
-        -> A.Scalar A.DIM2
-makeRec t b l r rad thCols rRows = run1 ( maxPoint
-                                        . hVals (A.constant thCols)
-                                                (A.constant rRows)
-                                        . circleMask (A.constant rad)
-                                        . crop (A.constant t)
-                                               (A.constant b)
-                                               (A.constant l)
-                                               (A.constant r)
-                                        . toTwoVal
-                                        . makeBW
-                                        )
+        -> (A.Scalar A.DIM2, A.Scalar Bool)
+makeRec t b l r rad thCols rRows =
+    let f arr = let circd = ( circleMask (A.constant rad)
+                            . crop (A.constant t)
+                                   (A.constant b)
+                                   (A.constant l)
+                                   (A.constant r)
+                            . toTwoVal
+                            . makeBW
+                            ) arr
+                    mp = ( maxPoint
+                         . hVals (A.constant thCols)
+                                 (A.constant rRows)
+                         ) circd
+                    lr = lorR circd
+                in A.lift (mp, lr)
+    in run1 f
 
 cropDebugPipeline :: FilePath -- ^ Input
                   -> FilePath -- ^ Output
@@ -157,14 +165,18 @@ transDebugPipeline i o w h fps t b l r rad tcols rrows = do
     pipe 1
     incpl
 
-resToNeedle :: Int                       -- ^ Theta columns
-            -> Double                    -- ^ Multiplicative calibration factor
-            -> Double                    -- ^ Exponential calibration factor
-            -> (A.Scalar A.DIM2, Double) -- ^ Result.
+resToNeedle :: Int        -- ^ Theta columns
+            -> Double     -- ^ Multiplicative calibration factor
+            -> Double     -- ^ Exponential calibration factor
+            -> ( (A.Scalar A.DIM2, A.Scalar Bool)
+               , Double)  -- ^ Result.
             -> Needle
-resToNeedle thCols af bf (res, t) =
-    let (A.Z A.:. rad A.:. thInd) = A.indexArray res A.Z
-        ang = indToRad thCols thInd
+resToNeedle thCols af bf ((resp, reslr), t) =
+    let (A.Z A.:. rad A.:. thInd) = A.indexArray resp A.Z
+        ang = indToRad thCols thInd + (if (A.indexArray reslr A.Z)
+                                       then pi
+                                       else 0
+                                      )
     in Needle t
               ang
               (fromIntegral rad)

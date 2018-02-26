@@ -11,12 +11,21 @@ import Data.Array.Accelerate as A
 
 import qualified Prelude
 
+-- 0 - 360
+--indToRad :: Int -> Int -> Double
+--indToRad m d = let fI = Prelude.fromIntegral
+--               in ((fI d) / (fI m)) * 2 * pi
+--
+--indToRadExp :: Exp Int -> Exp Int -> Exp Double
+--indToRadExp m d = ((fromIntegral d) / (fromIntegral m)) * 2 * pi
+
+-- 0 - 180
 indToRad :: Int -> Int -> Double
 indToRad m d = let fI = Prelude.fromIntegral
-               in ((fI d) / (fI m)) * 2 * pi
+               in ((fI d) / (fI m)) * pi
 
 indToRadExp :: Exp Int -> Exp Int -> Exp Double
-indToRadExp m d = ((fromIntegral d) / (fromIntegral m)) * 2 * pi
+indToRadExp m d = ((fromIntegral d) / (fromIntegral m)) * pi
 
 crop :: Exp Double  -- ^ Top crop frac
      -> Exp Double  -- ^ Bottom crop frac
@@ -61,8 +70,8 @@ hVals thetaCols rRows occ =
         per :: Exp (Z :. Int :. Int :. Int) -> Exp (Z :. Int :. Int)
         per tri =
             let (Z :. trt :. try :. trx) = unlift tri :: Z :. Exp Int :. Exp Int :. Exp Int
-                x     = fromIntegral trx :: Exp Double
-                y     = fromIntegral try :: Exp Double
+                x     = ((fromIntegral trx) - ((fromIntegral occw) / 2)) :: Exp Double
+                y     = -((fromIntegral try) - ((fromIntegral occh) / 2)) :: Exp Double
                 theta = indToRadExp thetaCols trt
                 r = (x * (cos theta) + y * (sin theta)) :: Exp Double
                 rind = round r + (rRows `div` 2)
@@ -98,3 +107,20 @@ maxPoint hvs =
         maxScalar :: Acc (Scalar (DIM2, Word32))
         maxScalar = fold1 fight hvsind
     in map fst maxScalar
+
+-- | True if right, false if left.
+lorR :: Acc (Array DIM2 Bool) -> Acc (Scalar Bool)
+lorR occ =
+    let (Z :. occh :. occw) = unlift (shape occ) :: Z :. Exp Int :. Exp Int
+        lor :: Exp DIM2 -> Exp Bool -> Exp (Word32, Word32)
+        lor i b = let (Z :. occy :. occx) = unlift i :: Z :. Exp Int :. Exp Int
+                      v = if b then 1 else 0 :: Exp Word32
+                  in if (occx > (occw `div` 2))
+                     then lift (0 :: Exp Word32, v) :: Exp (Word32, Word32)
+                     else lift (v, 0 :: Exp Word32) :: Exp (Word32, Word32)
+        lors = imap lor occ
+        lrsum lrx lry = let (lx, rx) = unlift lrx :: (Exp Word32, Exp Word32)
+                            (ly, ry) = unlift lry :: (Exp Word32, Exp Word32)
+                        in lift (lx + ly, rx + ry)
+        (l, r) = unlift (the (fold1All lrsum  lors))
+    in unit (r > l)
