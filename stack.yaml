@@ -15,7 +15,5 @@ extra-deps:
   commit: d37b12e422a8d54dfd6e6a773fe037d63512eff1
 - git: https://github.com/TravisWhitaker/nvvm.git
   commit: eb2e04f6fb38660d56f2abe43ac96ac2016cdff2
-- git: git@github.com:narsil-reforged/flir-ptu.git
-  commit: 5fdc9ef042fd1a3fb49c2df484c6c003c9575d85
 
 system-ghc: true
